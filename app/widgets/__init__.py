@@ -113,16 +113,48 @@ class ScrollFrame(ttk.Frame):
                                               anchor="nw")
         self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
-        # 只在鼠标进入本容器时临时绑定滚轮，离开即解绑，
-        # 避免 bind_all 在每次切换页面时累积回调（切页卡顿的隐患之一）。
-        self.canvas.bind("<Enter>", self._bind_wheel)
-        self.canvas.bind("<Leave>", self._unbind_wheel)
+
+        # 滚轮：在整个容器范围内生效。
+        # 不用 bind_all（会累积回调、影响其他页面），而是把 <Enter>/<Leave>
+        # 递归绑到 canvas 和所有子控件上——鼠标停在卡片/标签上时也能滚动。
+        self._bind_wheel_recursive(self)
+        self.inner.bind("<Configure>", self._rebind_after_change, add="+")
+
+    # ---- 滚轮绑定 ----
+    def _bind_wheel_recursive(self, widget) -> None:
+        widget.bind("<Enter>", self._bind_wheel, add="+")
+        widget.bind("<Leave>", self._unbind_wheel, add="+")
+        for child in widget.winfo_children():
+            self._bind_wheel_recursive(child)
+
+    def _rebind_after_change(self, _event=None) -> None:
+        """内容变化后给新控件补上滚轮绑定。"""
+        self._bind_wheel_recursive(self.inner)
 
     def _bind_wheel(self, _event=None):
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-4>", self._on_mousewheel)   # Linux
+        self.canvas.bind_all("<Button-5>", self._on_mousewheel)
 
     def _unbind_wheel(self, _event=None):
+        # 鼠标离开时若已进入其他控件，由那个控件的 <Enter> 重新绑定
+        self.after_idle(self._maybe_unbind)
+
+    def _maybe_unbind(self) -> None:
+        """只有当鼠标确实不在本容器内时才解绑。"""
+        try:
+            x, y = self.winfo_pointerxy()
+            widget = self.winfo_containing(x, y)
+        except (tk.TclError, KeyError):
+            widget = None
+        parent = widget
+        while parent is not None:
+            if parent is self:
+                return          # 还在容器内，保持绑定
+            parent = getattr(parent, "master", None)
         self.canvas.unbind_all("<MouseWheel>")
+        self.canvas.unbind_all("<Button-4>")
+        self.canvas.unbind_all("<Button-5>")
 
     def _on_inner_configure(self, _event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -131,9 +163,20 @@ class ScrollFrame(ttk.Frame):
         self.canvas.itemconfigure(self._win, width=event.width)
 
     def _on_mousewheel(self, event):
-        delta = -1 * (event.delta // 120) if event.delta else 0
-        if delta:
-            self.canvas.yview_scroll(int(delta), "units")
+        # Windows / macOS 用 delta，Linux 用 Button-4/5
+        if getattr(event, "num", None) == 4:
+            delta = -1
+        elif getattr(event, "num", None) == 5:
+            delta = 1
+        else:
+            d = event.delta
+            if d == 0:
+                return
+            # macOS 的 delta 是 ±1 的小值，Windows 是 ±120
+            delta = -1 if d > 0 else 1
+            if abs(d) >= 120:
+                delta = -int(d / 120)
+        self.canvas.yview_scroll(int(delta), "units")
 
 
 class LogView(ttk.Frame):

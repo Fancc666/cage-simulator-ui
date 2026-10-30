@@ -14,3 +14,10 @@ temp/
 
 # 运行时生成的用户设置（程序目录等），不入库
 settings.json
+
+# matplotlib 缓存回退目录（家目录不可写时生成在程序目录下）
+.mplcache/
+
+# PyInstaller 打包产物
+build/
+dist/

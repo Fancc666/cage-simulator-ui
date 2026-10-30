@@ -1,6 +1,6 @@
 """页面 ③：结果。
 
-左侧工况列表，右侧统计摘要 + 图片缩略图 + 交互曲线。
+左侧工况列表，右侧统计摘要 + 图片缩略图（可滚动、可点击预览）+ 交互曲线。
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from tkinter import ttk
 
 from app.paths import OUTPUT_DIR, open_in_explorer
 from app.theme import Color, FontSize, Fonts
-from app.widgets import Card
+from app.widgets import Card, ScrollFrame
 
 
 # 图片编号 → 中文标题
@@ -30,6 +30,9 @@ FIG_TITLES = {
     71: "JONSWAP 目标谱",
 }
 
+# 缩略图尺寸（比之前大，减少缩放失真）
+THUMB_W, THUMB_H = 320, 200
+
 
 class ResultPage(ttk.Frame):
     def __init__(self, master, app):
@@ -37,6 +40,7 @@ class ResultPage(ttk.Frame):
         self.app = app
         self._result = None
         self._thumb_refs: list = []
+        self._preview_win: tk.Toplevel | None = None
 
         # ---- 标题 ----
         head = ttk.Frame(self, padding=(20, 16, 20, 8))
@@ -68,9 +72,10 @@ class ResultPage(ttk.Frame):
         self.case_list.pack(fill="both", expand=True)
         self.case_list.bind("<<ListboxSelect>>", self._on_select)
 
-        # 右：内容
-        right = ttk.Frame(paned)
-        paned.add(right, weight=1)
+        # 右：可滚动内容
+        right_scroll = ScrollFrame(paned)
+        paned.add(right_scroll, weight=1)
+        right = right_scroll.inner
 
         # 统计摘要
         stat_card = Card(right, title="统计摘要")
@@ -82,34 +87,16 @@ class ResultPage(ttk.Frame):
         self.stat_label.pack(anchor="w")
 
         # 图片缩略图
-        fig_card = Card(right, title="结果图片")
-        fig_card.pack(fill="both", expand=True, pady=(0, 14))
+        fig_card = Card(right, title="结果图片",
+                        subtitle="点击缩略图可放大查看")
+        fig_card.pack(fill="x", pady=(0, 14))
         self.fig_grid = ttk.Frame(fig_card.body, style="Card.TFrame")
-        self.fig_grid.pack(fill="both", expand=True)
+        self.fig_grid.pack(fill="x")
         self._fig_placeholder = ttk.Label(
             self.fig_grid,
             text="运行完成后，这里显示 fig171 / fig173 / fig188 … 的缩略图。",
             style="CardMuted.TLabel")
         self._fig_placeholder.pack(anchor="w")
-
-        # 交互曲线
-        curve_card = Card(right, title="时程曲线")
-        curve_card.pack(fill="x")
-        row = ttk.Frame(curve_card.body, style="Card.TFrame")
-        row.pack(fill="x")
-        ttk.Label(row, text="自由度", style="Card.TLabel").pack(side="left")
-        self.var_dof = tk.StringVar(value="纵荡")
-        ttk.Combobox(row, textvariable=self.var_dof, width=10,
-                     values=["纵荡", "横荡", "垂荡", "横摇", "纵摇", "艏摇"],
-                     state="readonly").pack(side="left", padx=(6, 16))
-        ttk.Label(row, text="缆绳", style="Card.TLabel").pack(side="left")
-        self.var_line = tk.StringVar(value="L1")
-        ttk.Combobox(row, textvariable=self.var_line, width=8,
-                     values=["L1", "L2", "R1", "R2"],
-                     state="readonly").pack(side="left", padx=(6, 0))
-        ttk.Label(curve_card.body,
-                  text="（曲线绘制将在下一步接入）",
-                  style="CardMuted.TLabel").pack(anchor="w", pady=(8, 0))
 
         self.refresh()
 
@@ -178,8 +165,6 @@ class ResultPage(ttk.Frame):
     # ===================================================================== #
     def _show_result(self, result) -> None:
         """展示 RunResult 的统计与图片。"""
-        import numpy as np
-
         dof = ["纵荡", "横荡", "垂荡", "横摇", "纵摇", "艏摇"]
         lines = [
             f"工况：{result.case_name}",
@@ -202,8 +187,9 @@ class ResultPage(ttk.Frame):
 
         self._show_figures(result.output_dir)
 
+    # ===================================================================== #
     def _show_figures(self, folder: Path) -> None:
-        """在网格里显示缩略图。"""
+        """在网格里显示缩略图，点击可放大。"""
         for w in self.fig_grid.winfo_children():
             w.destroy()
         self._thumb_refs.clear()
@@ -229,25 +215,71 @@ class ResultPage(ttk.Frame):
                       style="CardMuted.TLabel").pack(anchor="w")
             return
 
-        cols = 4
+        cols = 3
         for i, path in enumerate(pngs):
             try:
                 img = Image.open(path)
-                img.thumbnail((220, 140))
+                # 用 LANCZOS 高质量缩放，避免锯齿/模糊
+                img.thumbnail((THUMB_W, THUMB_H), Image.LANCZOS)
                 photo = ImageTk.PhotoImage(img)
             except Exception:  # noqa: BLE001
                 continue
             self._thumb_refs.append(photo)
 
             cell = ttk.Frame(self.fig_grid, style="Card.TFrame")
-            cell.grid(row=i // cols, column=i % cols, padx=6, pady=6,
+            cell.grid(row=i // cols, column=i % cols, padx=8, pady=8,
                       sticky="nw")
-            lbl = ttk.Label(cell, image=photo, style="Card.TLabel")
+
+            # 缩略图标签（可点击）
+            lbl = tk.Label(cell, image=photo, bg=Color.CARD,
+                           cursor="hand2", borderwidth=0)
             lbl.pack()
+            lbl.bind("<Button-1>", lambda _e, p=path: self._preview(p))
+
             num = path.stem.replace("fig", "").replace("K66-0", "K66")
             try:
                 title = FIG_TITLES.get(int(num), path.stem)
             except ValueError:
                 title = "辐射迟滞函数 K66"
-            ttk.Label(cell, text=title, style="CardMuted.TLabel").pack(
-                anchor="w", pady=(2, 0))
+            cap = tk.Label(cell, text=title, bg=Color.CARD,
+                           fg=Color.TEXT_MUTED,
+                           font=Fonts.get(FontSize.SMALL))
+            cap.pack(anchor="w", pady=(4, 0))
+
+    # ===================================================================== #
+    def _preview(self, path: Path) -> None:
+        """弹出大图预览窗口（可缩放）。"""
+        try:
+            from PIL import Image, ImageTk
+        except ImportError:
+            return
+
+        # 关闭上一个预览窗
+        if self._preview_win is not None and self._preview_win.winfo_exists():
+            self._preview_win.destroy()
+
+        win = tk.Toplevel(self)
+        self._preview_win = win
+        win.title(path.name)
+        win.configure(bg=Color.BG)
+
+        # 按屏幕大小自适应
+        sw = win.winfo_screenwidth()
+        sh = win.winfo_screenheight()
+        max_w = int(sw * 0.85)
+        max_h = int(sh * 0.85)
+
+        img = Image.open(path)
+        img.thumbnail((max_w, max_h), Image.LANCZOS)
+        photo = ImageTk.PhotoImage(img)
+
+        win.geometry(f"{img.width + 20}x{img.height + 20}")
+        win.minsize(400, 300)
+
+        lbl = tk.Label(win, image=photo, bg=Color.BG)
+        lbl.image = photo          # 防止被 GC
+        lbl.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # 双击关闭
+        lbl.bind("<Double-Button-1>", lambda _e: win.destroy())
+        win.bind("<Escape>", lambda _e: win.destroy())

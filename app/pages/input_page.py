@@ -13,6 +13,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from app.core.config import Project
+from app.core.engine import catenary_curve
 from app.paths import DEFAULT_PROGRAM_DIR, DEFAULT_WAMIT_DIR, DEFAULT_WAVE_DIR
 from app.theme import Color, FontSize, Fonts
 from app.widgets import Card, Field, FileRow, ScrollFrame
@@ -357,11 +358,138 @@ class InputPage(ttk.Frame):
                   text="注：A2 / B2 在计算中张力被强制置零，取消勾选即不参与。",
                   style="CardMuted.TLabel").pack(anchor="w", pady=(4, 0))
 
-        ttk.Button(self.moor_body, text="计算悬链线曲线（占位）",
-                   style="Ghost.TButton",
-                   command=lambda: messagebox.showinfo(
-                       "占位", "此处将绘制 x_jie–T_H 曲线与初始预张力标注。")
-                   ).pack(anchor="w", pady=(10, 0))
+        # ---- 悬链线曲线 ----
+        btn_row = ttk.Frame(self.moor_body, style="Card.TFrame")
+        btn_row.pack(anchor="w", pady=(12, 0))
+        ttk.Button(btn_row, text="计算悬链线曲线", style="Ghost.TButton",
+                   command=self._plot_catenary).pack(side="left")
+        self.catenary_info = ttk.Label(btn_row, text="", style="CardMuted.TLabel")
+        self.catenary_info.pack(side="left", padx=(12, 0))
+
+        # 曲线显示区（默认隐藏，算完才显示）
+        self.catenary_frame = ttk.Frame(self.moor_body, style="Card.TFrame")
+        self._catenary_canvas = None
+
+    def _plot_catenary(self) -> None:
+        """计算并绘制悬链线「水平位移–水平力」曲线。"""
+        try:
+            proj = self.collect()
+        except ValueError as exc:
+            messagebox.showerror("参数错误", str(exc))
+            return
+
+        try:
+            x_jie, T_H = catenary_curve(proj.mooring)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("计算失败", f"{type(exc).__name__}: {exc}")
+            return
+
+        # 统计信息
+        self.catenary_info.configure(
+            text=f"{len(x_jie)} 个预张力点，"
+                 f"位移 {x_jie.min():.2f}–{x_jie.max():.2f} m，"
+                 f"水平力 {T_H.min():.2f}–{T_H.max():.2f} ton")
+
+        # 画图
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            from matplotlib.figure import Figure
+        except ImportError as exc:
+            messagebox.showerror("缺少依赖", f"需要 matplotlib：{exc}")
+            return
+
+        # 中文字体
+        from app.core.engine import ensure_cjk_font
+        ensure_cjk_font(plt)
+
+        # 清掉旧图
+        if self._catenary_canvas is not None:
+            self._catenary_canvas.get_tk_widget().destroy()
+            self._catenary_canvas = None
+
+        fig = Figure(figsize=(7.5, 4.2), dpi=100)
+        ax = fig.add_subplot(111)
+
+        # 悬链线曲线在「张紧点」处不连续：缆绳从悬垂段切到张紧段，
+        # 水平位移会突降（161 m → 135 m）。按跳变点分成两段画，
+        # 否则连起来会像一条折返线，看起来像画错了。
+        import numpy as _np
+        d = _np.diff(x_jie)
+        jumps = _np.nonzero(_np.abs(d) > 1.0)[0] + 1   # 位移突降点
+
+        if jumps.size:
+            cut = int(jumps[0])
+            ax.plot(x_jie[:cut], T_H[:cut], lw=1.8, color="#2563eb",
+                    label="悬垂段（松弛）")
+            ax.plot(x_jie[cut:], T_H[cut:], lw=1.8, color="#dc2626",
+                    label="张紧段")
+            ax.legend(loc="upper left", fontsize=8)
+
+            # 标注张紧点（悬垂段末端）
+            ax.plot(x_jie[cut - 1], T_H[cut - 1], "^", color="#d97706",
+                    ms=7, zorder=5)
+            ax.annotate(f"张紧点 {T_H[cut - 1]:.1f} ton\n"
+                        f"位移 {x_jie[cut - 1]:.2f} m",
+                        xy=(x_jie[cut - 1], T_H[cut - 1]),
+                        xytext=(-110, 20), textcoords="offset points",
+                        fontsize=9, color="#d97706",
+                        arrowprops=dict(arrowstyle="->", color="#d97706", lw=1))
+        else:
+            ax.plot(x_jie, T_H, lw=1.8, color="#2563eb")
+
+        ax.set_xlabel("导缆孔到锚点水平距离 (m)")
+        ax.set_ylabel("水平分力 (ton)")
+        ax.set_title("单根缆悬链线恢复力曲线")
+        ax.grid(True, alpha=0.3, linestyle=":")
+        # 右侧留出空位给放大插图，避免压住主曲线
+        ax.set_xlim(min(x_jie.min(), x_jie.max()) - 2,
+                    x_jie.max() + max(8.0, (x_jie.max() - x_jie.min()) * 0.22))
+
+        # 标注初始预张力对应的点（第一个点）
+        ax.plot(x_jie[0], T_H[0], "o", color="#dc2626", ms=6, zorder=5)
+        ax.annotate(f"初始预张力 {T_H[0]:.1f} ton\n位移 {x_jie[0]:.2f} m",
+                    xy=(x_jie[0], T_H[0]),
+                    xytext=(-95, -50), textcoords="offset points",
+                    fontsize=9, color="#dc2626",
+                    arrowprops=dict(arrowstyle="->", color="#dc2626", lw=1))
+
+        # 悬垂段只有 0.5 m 跨度，主图上几乎看不见，加一个局部放大插图
+        if jumps.size:
+            cut = int(jumps[0])
+            xs, ys = x_jie[:cut], T_H[:cut]
+            pad_x = max((xs.max() - xs.min()) * 0.15, 0.02)
+            pad_y = max((ys.max() - ys.min()) * 0.20, 0.15)
+
+            axins = ax.inset_axes([0.63, 0.50, 0.34, 0.40])
+            axins.plot(xs, ys, lw=1.8, color="#2563eb")
+            axins.plot(xs[0], ys[0], "o", color="#dc2626", ms=5, zorder=5)
+            axins.plot(xs[-1], ys[-1], "^", color="#d97706", ms=5, zorder=5)
+            axins.set_xlim(xs.min() - pad_x, xs.max() + pad_x)
+            axins.set_ylim(ys.min() - pad_y, ys.max() + pad_y)
+            axins.tick_params(labelsize=7)
+
+            # 标题画在插图内部左上角，避免被画布边缘裁切
+            axins.text(0.04, 0.96, "悬垂段（局部放大）",
+                       transform=axins.transAxes, va="top", ha="left",
+                       fontsize=8, color="#6b7280")
+
+            # 虚线框 + 引导线指出放大区域
+            ax.indicate_inset_zoom(axins, edgecolor="#9ca3af", alpha=0.7,
+                                   linewidth=0.8)
+
+        fig.tight_layout()
+
+        self._catenary_canvas = FigureCanvasTkAgg(fig, master=self.catenary_frame)
+        widget = self._catenary_canvas.get_tk_widget()
+        widget.pack(fill="both", expand=True)
+        self._catenary_canvas.draw()
+
+        # 显示容器
+        if not self.catenary_frame.winfo_ismapped():
+            self.catenary_frame.pack(fill="x", pady=(10, 0))
 
     def _toggle_mooring(self) -> None:
         if self.moor_open.get():

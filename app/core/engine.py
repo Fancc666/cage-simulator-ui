@@ -168,7 +168,7 @@ class CageEngine:
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         plot_style.apply()
-        _ensure_cjk_font(plt)
+        ensure_cjk_font(plt)
 
         # ---------------- 阶段 1：参数 + 波面 ----------------
         self._stage(0, "running")
@@ -394,52 +394,7 @@ class CageEngine:
 
         与原始实现的唯一区别：缆绳参数来自 UI 配置而非写死。
         """
-        m = self.project.mooring
-        T = np.arange(m.pretension_min,
-                      m.pretension_max + m.pretension_step / 2,
-                      m.pretension_step)
-        nt = len(T)
-        x_jie = np.zeros(nt)
-        T_H = np.zeros(nt)
-
-        for it in range(nt):
-            T0 = T[it] * 1000.0 * 9.8067     # 预张力 N
-            w = m.wet_weight                 # 湿重 N/m
-            EA = m.ea                        # 轴向刚度 N
-            Z = m.depth                      # 水深 + 干舷 m
-            ST = m.length                    # 未拉伸原长 m
-
-            fai_all = np.array([0.0, np.pi / 2.0])
-            H = V = S = None
-            with np.errstate(divide="ignore", invalid="ignore"):
-                while fai_all[1] - fai_all[0] > 1e-12:
-                    fai = np.array([fai_all[0],
-                                    (fai_all[0] + fai_all[1]) / 2.0,
-                                    fai_all[1]])
-                    H = T0 * np.sin(fai)
-                    V = T0 * np.cos(fai)
-                    S = V[1] / w
-                    L = (V[1] / w
-                         + (H[1] ** 2 / (2.0 * w * EA))
-                         * ((V[1] / H[1])
-                            * (np.sqrt(1.0 + (V[1] / H[1]) ** 2)
-                               + np.arcsinh(V[1] / H[1]))))
-                    if S <= L:
-                        Z_fai = ((H / w) * (np.sqrt(1.0 + (V / H) ** 2) - 1.0)
-                                 + V ** 2 / (2.0 * w * EA) - Z)
-                        if Z_fai[0] * Z_fai[1] <= 0:
-                            fai_all = np.array([fai[0], fai[1]])
-                        else:
-                            fai_all = np.array([fai[1], fai[2]])
-                    else:
-                        break
-
-            X = (H[1] / w) * np.arcsinh(V[1] / H[1]) + H[1] * V[1] / (w * EA)
-            S0 = ST - S
-            x_jie[it] = S0 * (H[1] / EA + 1.0) + X
-            T_H[it] = np.sin(fai[1]) * T[it]
-
-        return x_jie, T_H
+        return catenary_curve(self.project.mooring)
 
     # ===================================================================== #
     #  阶段 3：装配
@@ -800,7 +755,7 @@ _CJK_FONTS = [
 ]
 
 
-def _ensure_cjk_font(plt) -> None:
+def ensure_cjk_font(plt) -> None:
     """确保 matplotlib 能显示中文。
 
     ``plot_style.apply()`` 里写死了 Windows 字体，这里检查当前系统实际
@@ -817,3 +772,72 @@ def _ensure_cjk_font(plt) -> None:
     merged = usable + [f for f in current if f not in usable]
     plt.rcParams["font.sans-serif"] = merged
     plt.rcParams["axes.unicode_minus"] = False
+
+
+# --------------------------------------------------------------------------- #
+#  悬链线曲线（独立函数，供 UI 预览与引擎共用）
+# --------------------------------------------------------------------------- #
+def catenary_curve(mooring) -> tuple[np.ndarray, np.ndarray]:
+    """计算单根缆的「水平位移–水平力」曲线。
+
+    复刻 ``CagePython/xibo_dangenlan.py``，参数来自 ``MooringConfig``。
+
+    Parameters
+    ----------
+    mooring : MooringConfig
+        缆绳参数（湿重、刚度、水深、原长、预张力范围）。
+
+    Returns
+    -------
+    x_jie : ndarray
+        导缆孔到锚点的水平距离（m）。
+    T_H : ndarray
+        对应的水平分力（ton）。
+    """
+    m = mooring
+    T = np.arange(m.pretension_min,
+                  m.pretension_max + m.pretension_step / 2,
+                  m.pretension_step)
+    nt = len(T)
+    x_jie = np.zeros(nt)
+    T_H = np.zeros(nt)
+
+    w = m.wet_weight      # 湿重 N/m
+    EA = m.ea             # 轴向刚度 N
+    Z = m.depth           # 水深 + 干舷 m
+    ST = m.length         # 未拉伸原长 m
+
+    for it in range(nt):
+        T0 = T[it] * 1000.0 * 9.8067     # 预张力 N
+
+        fai_all = np.array([0.0, np.pi / 2.0])
+        H = V = S = None
+        with np.errstate(divide="ignore", invalid="ignore"):
+            while fai_all[1] - fai_all[0] > 1e-12:
+                fai = np.array([fai_all[0],
+                                (fai_all[0] + fai_all[1]) / 2.0,
+                                fai_all[1]])
+                H = T0 * np.sin(fai)
+                V = T0 * np.cos(fai)
+                S = V[1] / w
+                L = (V[1] / w
+                     + (H[1] ** 2 / (2.0 * w * EA))
+                     * ((V[1] / H[1])
+                        * (np.sqrt(1.0 + (V[1] / H[1]) ** 2)
+                           + np.arcsinh(V[1] / H[1]))))
+                if S <= L:
+                    Z_fai = ((H / w) * (np.sqrt(1.0 + (V / H) ** 2) - 1.0)
+                             + V ** 2 / (2.0 * w * EA) - Z)
+                    if Z_fai[0] * Z_fai[1] <= 0:
+                        fai_all = np.array([fai[0], fai[1]])
+                    else:
+                        fai_all = np.array([fai[1], fai[2]])
+                else:
+                    break
+
+        X = (H[1] / w) * np.arcsinh(V[1] / H[1]) + H[1] * V[1] / (w * EA)
+        S0 = ST - S
+        x_jie[it] = S0 * (H[1] / EA + 1.0) + X
+        T_H[it] = np.sin(fai[1]) * T[it]
+
+    return x_jie, T_H

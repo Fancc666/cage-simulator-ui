@@ -44,8 +44,20 @@ PROJECTS_DIR = app_dir() / "projects"
 OUTPUT_DIR = app_dir() / "output"
 LOGS_DIR = app_dir() / "logs"
 
+
+def program_dir_default() -> Path:
+    """原始计算程序（CagePython）的默认位置。
+
+    打包策略为「文件夹版」（方案 B）：exe 旁边放一个 ``CagePython/`` 目录，
+    用户可自行维护。源码运行时则用项目根目录下的 ``CagePython/``。
+    """
+    if FROZEN:
+        return Path(sys.executable).resolve().parent / "CagePython"
+    return PROJECT_ROOT / "CagePython"
+
+
 # 原始计算程序目录（CagePython）
-DEFAULT_PROGRAM_DIR = PROJECT_ROOT / "CagePython"
+DEFAULT_PROGRAM_DIR = program_dir_default()
 # 内置资源目录（波面文件、WAMIT 文件默认位置）
 DEFAULT_WAMIT_DIR = DEFAULT_PROGRAM_DIR
 DEFAULT_WAVE_DIR = DEFAULT_PROGRAM_DIR
