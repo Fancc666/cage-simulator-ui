@@ -6,11 +6,14 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Iterable, Sequence
 
-from app.theme import Color, Fonts
+from app.theme import Color, FontSize, Fonts
 
 
 class Card(ttk.Frame):
-    """带标题的白色卡片容器。
+    """带标题的卡片容器。
+
+    不用硬边框（clam 主题的边框叠在一起会像网格线），
+    改用「浅色底 + 留白」区分层次。
 
     用法::
 
@@ -22,18 +25,15 @@ class Card(ttk.Frame):
         super().__init__(master, style="Card.TFrame", padding=0, **kw)
 
         header = ttk.Frame(self, style="Card.TFrame")
-        header.pack(fill="x", padx=14, pady=(12, 0))
+        header.pack(fill="x", padx=18, pady=(14, 0))
         if title:
             ttk.Label(header, text=title, style="CardH2.TLabel").pack(side="left")
         if subtitle:
             ttk.Label(header, text=subtitle, style="CardMuted.TLabel").pack(
-                side="left", padx=(10, 0))
-
-        ttk.Separator(self, orient="horizontal").pack(
-            fill="x", padx=14, pady=(8, 0))
+                side="left", padx=(12, 0))
 
         self.body = ttk.Frame(self, style="Card.TFrame")
-        self.body.pack(fill="both", expand=True, padx=14, pady=(10, 12))
+        self.body.pack(fill="both", expand=True, padx=18, pady=(12, 16))
 
 
 class Field(ttk.Frame):
@@ -43,18 +43,18 @@ class Field(ttk.Frame):
                  unit: str = "", width: int = 14, hint: str = "",
                  row: int = 0, col: int = 0, **kw):
         super().__init__(master, style="Card.TFrame", **kw)
-        self.grid(row=row, column=col, sticky="w", padx=(0, 18), pady=4)
+        self.grid(row=row, column=col, sticky="w", padx=(0, 24), pady=6)
 
-        ttk.Label(self, text=label, style="Card.TLabel", width=12,
+        ttk.Label(self, text=label, style="Card.TLabel", width=13,
                   anchor="w").pack(side="left")
         self.entry = ttk.Entry(self, textvariable=var, width=width)
         self.entry.pack(side="left")
         if unit:
             ttk.Label(self, text=unit, style="CardMuted.TLabel").pack(
-                side="left", padx=(4, 0))
+                side="left", padx=(6, 0))
         if hint:
             ttk.Label(self, text=hint, style="CardMuted.TLabel").pack(
-                side="left", padx=(6, 0))
+                side="left", padx=(8, 0))
 
 
 class StatBadge(ttk.Frame):
@@ -81,14 +81,14 @@ class FileRow(ttk.Frame):
     def __init__(self, master, filename: str, desc: str):
         super().__init__(master, style="Card.TFrame")
         self.filename = filename
-        ttk.Label(self, text=filename, style="Card.TLabel", width=16,
+        ttk.Label(self, text=filename, style="Card.TLabel", width=17,
                   anchor="w").pack(side="left")
-        ttk.Label(self, text=desc, style="CardMuted.TLabel", width=22,
+        ttk.Label(self, text=desc, style="CardMuted.TLabel", width=20,
                   anchor="w").pack(side="left")
         self.badge = StatBadge(self)
-        self.badge.pack(side="left", padx=(8, 0))
+        self.badge.pack(side="left", padx=(10, 0))
         self.detail = ttk.Label(self, text="", style="CardMuted.TLabel")
-        self.detail.pack(side="left", padx=(10, 0))
+        self.detail.pack(side="left", padx=(12, 0))
 
     def set_state(self, text: str, state: str, detail: str = "") -> None:
         self.badge.set(text, state)
@@ -142,8 +142,9 @@ class LogView(ttk.Frame):
         self.text = tk.Text(self, height=height, wrap="none",
                             bg=Color.LOG_BG, fg=Color.LOG_FG,
                             insertbackground=Color.LOG_FG,
-                            font=(Fonts.family, 9),
-                            relief="flat", padx=10, pady=8,
+                            font=(Fonts.family, FontSize.LOG),
+                            relief="flat", borderwidth=0,
+                            padx=12, pady=10,
                             state="disabled")
         ybar = ttk.Scrollbar(self, orient="vertical", command=self.text.yview)
         self.text.configure(yscrollcommand=ybar.set)
@@ -178,15 +179,15 @@ class Stepper(ttk.Frame):
 
         for i, name in enumerate(steps):
             lbl = tk.Label(self, text=f"{i + 1}  {name}",
-                           font=Fonts.get(10, "bold"),
+                           font=Fonts.get(FontSize.BASE, "bold"),
                            bg=Color.BG, fg=Color.TEXT_MUTED,
-                           padx=14, pady=6, cursor="hand2")
+                           padx=16, pady=7)
             lbl.pack(side="left")
             lbl.bind("<Button-1>", lambda _e, idx=i: self._click(idx))
             self._labels.append(lbl)
             if i < len(steps) - 1:
                 tk.Label(self, text="›", bg=Color.BG, fg=Color.BORDER,
-                         font=Fonts.get(14)).pack(side="left")
+                         font=Fonts.get(FontSize.H2)).pack(side="left")
 
         self.set_current(0)
 

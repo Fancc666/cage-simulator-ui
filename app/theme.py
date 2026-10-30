@@ -45,16 +45,29 @@ class Color:
 #  尺寸
 # --------------------------------------------------------------------------- #
 class Size:
-    WINDOW_MIN_W = 1080
-    WINDOW_MIN_H = 720
-    WINDOW_DEFAULT_W = 1240
-    WINDOW_DEFAULT_H = 800
+    WINDOW_MIN_W = 1120
+    WINDOW_MIN_H = 740
+    WINDOW_DEFAULT_W = 1280
+    WINDOW_DEFAULT_H = 840
 
-    SIDEBAR_W = 210
-    PAD = 12
-    PAD_S = 6
-    PAD_L = 18
+    SIDEBAR_W = 220
+    PAD = 14
+    PAD_S = 8
+    PAD_L = 20
     RADIUS = 8
+
+
+# --------------------------------------------------------------------------- #
+#  字号（统一在这里调，全部 UI 跟着变）
+# --------------------------------------------------------------------------- #
+class FontSize:
+    BASE = 11        # 正文 / 输入框 / 按钮
+    SMALL = 10       # 提示文字
+    CARD_TITLE = 13  # 卡片标题
+    H1 = 20          # 页面大标题
+    H2 = 15          # 区块标题
+    NAV = 12         # 侧边导航
+    LOG = 10         # 日志
 
 
 # --------------------------------------------------------------------------- #
@@ -93,8 +106,8 @@ def apply_theme(root: tk.Tk) -> None:
     Fonts.family = pick_ui_font(root)
 
     root.configure(bg=Color.BG)
-    root.option_add("*Font", Fonts.get(10))
-    root.option_add("*TCombobox*Listbox.font", Fonts.get(10))
+    root.option_add("*Font", Fonts.get(FontSize.BASE))
+    root.option_add("*TCombobox*Listbox.font", Fonts.get(FontSize.BASE))
 
     style = ttk.Style(root)
     try:
@@ -103,73 +116,83 @@ def apply_theme(root: tk.Tk) -> None:
         pass
 
     # ---- 基础 ----
-    style.configure(".", font=Fonts.get(10), background=Color.BG,
-                    foreground=Color.TEXT)
-    style.configure("TFrame", background=Color.BG)
-    style.configure("Card.TFrame", background=Color.CARD,
-                    relief="solid", borderwidth=1)
-    style.configure("TLabel", background=Color.BG, foreground=Color.TEXT)
-    style.configure("Card.TLabel", background=Color.CARD)
+    # 注意：clam 主题会给每个控件画边框，这里统一压掉，只在需要的地方保留
+    style.configure(".", font=Fonts.get(FontSize.BASE), background=Color.BG,
+                    foreground=Color.TEXT, borderwidth=0)
+    style.configure("TFrame", background=Color.BG, borderwidth=0)
+    style.configure("Card.TFrame", background=Color.CARD, borderwidth=0,
+                    relief="flat")
+    style.configure("TLabel", background=Color.BG, foreground=Color.TEXT,
+                    borderwidth=0)
+    style.configure("Card.TLabel", background=Color.CARD, borderwidth=0)
     style.configure("Muted.TLabel", background=Color.BG,
-                    foreground=Color.TEXT_MUTED)
+                    foreground=Color.TEXT_MUTED, borderwidth=0)
     style.configure("CardMuted.TLabel", background=Color.CARD,
-                    foreground=Color.TEXT_MUTED)
-    style.configure("H1.TLabel", font=Fonts.get(18, "bold"))
-    style.configure("H2.TLabel", font=Fonts.get(13, "bold"))
-    style.configure("CardH2.TLabel", font=Fonts.get(13, "bold"),
+                    foreground=Color.TEXT_MUTED, borderwidth=0)
+    style.configure("H1.TLabel", font=Fonts.get(FontSize.H1, "bold"))
+    style.configure("H2.TLabel", font=Fonts.get(FontSize.H2, "bold"))
+    style.configure("CardH2.TLabel", font=Fonts.get(FontSize.CARD_TITLE, "bold"),
                     background=Color.CARD)
-    style.configure("Hint.TLabel", font=Fonts.get(9),
+    style.configure("Hint.TLabel", font=Fonts.get(FontSize.SMALL),
                     foreground=Color.TEXT_MUTED)
 
     # ---- 按钮 ----
-    style.configure("TButton", padding=(12, 6), font=Fonts.get(10))
-    style.configure("Primary.TButton", padding=(14, 7),
-                    font=Fonts.get(10, "bold"),
+    style.configure("TButton", padding=(14, 7), font=Fonts.get(FontSize.BASE),
+                    borderwidth=0, relief="flat", background="#e8ecf1")
+    style.map("TButton", background=[("active", "#dbe1e8")])
+    style.configure("Primary.TButton", padding=(16, 8),
+                    font=Fonts.get(FontSize.BASE, "bold"),
                     background=Color.PRIMARY, foreground=Color.TEXT_INVERSE,
-                    borderwidth=0)
+                    borderwidth=0, relief="flat")
     style.map("Primary.TButton",
               background=[("active", Color.PRIMARY_HOVER),
                           ("disabled", "#93b4f5")])
-    style.configure("Danger.TButton", padding=(14, 7),
-                    font=Fonts.get(10, "bold"),
+    style.configure("Danger.TButton", padding=(16, 8),
+                    font=Fonts.get(FontSize.BASE, "bold"),
                     background=Color.DANGER, foreground=Color.TEXT_INVERSE,
-                    borderwidth=0)
+                    borderwidth=0, relief="flat")
     style.map("Danger.TButton",
               background=[("active", "#b91c1c"), ("disabled", "#f0a0a0")])
-    style.configure("Ghost.TButton", padding=(10, 5), borderwidth=1)
+    style.configure("Ghost.TButton", padding=(12, 6), borderwidth=0,
+                    relief="flat", background="#e8ecf1")
 
     # ---- 输入控件 ----
-    style.configure("TEntry", padding=4, fieldbackground="#ffffff")
-    style.configure("TCombobox", padding=4, fieldbackground="#ffffff")
-    style.configure("TCheckbutton", background=Color.BG)
-    style.configure("Card.TCheckbutton", background=Color.CARD)
-    style.configure("TRadiobutton", background=Color.BG)
-    style.configure("Card.TRadiobutton", background=Color.CARD)
-    style.configure("TLabelframe", background=Color.BG,
-                    bordercolor=Color.BORDER)
+    style.configure("TEntry", padding=5, fieldbackground="#ffffff",
+                    borderwidth=1, relief="solid", bordercolor=Color.BORDER)
+    style.configure("TCombobox", padding=5, fieldbackground="#ffffff",
+                    borderwidth=1, relief="solid", bordercolor=Color.BORDER)
+    style.configure("TCheckbutton", background=Color.BG, borderwidth=0)
+    style.configure("Card.TCheckbutton", background=Color.CARD, borderwidth=0)
+    style.configure("TRadiobutton", background=Color.BG, borderwidth=0)
+    style.configure("Card.TRadiobutton", background=Color.CARD, borderwidth=0)
+    style.configure("TLabelframe", background=Color.BG, borderwidth=0)
     style.configure("TLabelframe.Label", background=Color.BG,
-                    font=Fonts.get(10, "bold"), foreground=Color.TEXT)
+                    font=Fonts.get(FontSize.BASE, "bold"),
+                    foreground=Color.TEXT)
 
     # ---- 进度条 ----
-    style.configure("TProgressbar", thickness=16,
+    style.configure("TProgressbar", thickness=18,
                     background=Color.PRIMARY, troughcolor="#e5e7eb",
-                    borderwidth=0)
+                    borderwidth=0, relief="flat")
 
     # ---- 表格 ----
-    style.configure("Treeview", rowheight=26, font=Fonts.get(10),
+    style.configure("Treeview", rowheight=30, font=Fonts.get(FontSize.BASE),
                     background=Color.CARD, fieldbackground=Color.CARD,
-                    borderwidth=1)
-    style.configure("Treeview.Heading", font=Fonts.get(10, "bold"),
-                    padding=(6, 6))
+                    borderwidth=0, relief="flat")
+    style.configure("Treeview.Heading", font=Fonts.get(FontSize.BASE, "bold"),
+                    padding=(8, 8), borderwidth=0, relief="flat",
+                    background="#eef1f5")
+    style.map("Treeview.Heading", background=[("active", "#e2e7ee")])
     style.map("Treeview", background=[("selected", "#dbeafe")],
               foreground=[("selected", Color.TEXT)])
 
-    # ---- 分隔线 ----
-    style.configure("TSeparator", background=Color.BORDER)
+    # ---- 分隔线：只保留真正需要的，颜色调淡 ----
+    style.configure("TSeparator", background="#e6e9ee")
 
     # ---- Notebook ----
     style.configure("TNotebook", background=Color.BG, borderwidth=0)
-    style.configure("TNotebook.Tab", padding=(14, 7), font=Fonts.get(10))
+    style.configure("TNotebook.Tab", padding=(16, 8),
+                    font=Fonts.get(FontSize.BASE))
     style.map("TNotebook.Tab",
               background=[("selected", Color.CARD)],
               foreground=[("selected", Color.PRIMARY)])

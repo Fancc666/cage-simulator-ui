@@ -14,7 +14,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from app.core.config import Project
 from app.paths import DEFAULT_WAMIT_DIR, DEFAULT_WAVE_DIR
-from app.theme import Color, Fonts
+from app.theme import Color, FontSize, Fonts
 from app.widgets import Card, Field, FileRow, ScrollFrame
 
 
@@ -25,7 +25,7 @@ class InputPage(ttk.Frame):
         self.project: Project = app.project
 
         # ---- 顶部标题 ----
-        head = ttk.Frame(self, padding=(18, 14, 18, 6))
+        head = ttk.Frame(self, padding=(20, 16, 20, 8))
         head.pack(fill="x")
         ttk.Label(head, text="输入", style="H1.TLabel").pack(side="left")
         ttk.Label(head, text="水动力系数 + 波浪工况 + 系泊布置",
@@ -33,7 +33,7 @@ class InputPage(ttk.Frame):
 
         # ---- 可滚动内容 ----
         scroll = ScrollFrame(self)
-        scroll.pack(fill="both", expand=True, padx=18, pady=(0, 6))
+        scroll.pack(fill="both", expand=True, padx=20, pady=(0, 8))
         body = scroll.inner
 
         self._build_hydro(body)
@@ -41,7 +41,7 @@ class InputPage(ttk.Frame):
         self._build_mooring(body)
 
         # ---- 底部按钮 ----
-        foot = ttk.Frame(self, padding=(18, 8, 18, 14))
+        foot = ttk.Frame(self, padding=(20, 10, 20, 16))
         foot.pack(fill="x")
         ttk.Button(foot, text="保存工程", style="Ghost.TButton",
                    command=self._on_save).pack(side="left")
@@ -58,7 +58,7 @@ class InputPage(ttk.Frame):
     def _build_hydro(self, parent) -> None:
         card = Card(parent, title="① 水动力系数",
                     subtitle="WAMIT 输出，一次算好反复使用")
-        card.pack(fill="x", pady=(0, 12))
+        card.pack(fill="x", pady=(0, 14))
         b = card.body
 
         row = ttk.Frame(b, style="Card.TFrame")
@@ -148,7 +148,7 @@ class InputPage(ttk.Frame):
     # ===================================================================== #
     def _build_wave(self, parent) -> None:
         card = Card(parent, title="② 波浪工况", subtitle="三种波型三选一")
-        card.pack(fill="x", pady=(0, 12))
+        card.pack(fill="x", pady=(0, 14))
         b = card.body
 
         self.var_wave_mode = tk.StringVar(value=self.project.wave.mode)
@@ -223,7 +223,7 @@ class InputPage(ttk.Frame):
         ttk.Label(out_row, text="输出目录名", style="Card.TLabel",
                   width=12, anchor="w").pack(side="left")
         self.case_name_label = ttk.Label(out_row, text="", style="Card.TLabel",
-                                         font=Fonts.get(10, "bold"))
+                                         font=Fonts.get(FontSize.BASE, "bold"))
         self.case_name_label.pack(side="left")
 
         self._switch_wave_mode()
@@ -281,7 +281,7 @@ class InputPage(ttk.Frame):
     def _build_mooring(self, parent) -> None:
         card = Card(parent, title="③ 系泊系统",
                     subtitle="一般用默认值，高级用户再展开")
-        card.pack(fill="x", pady=(0, 12))
+        card.pack(fill="x", pady=(0, 14))
         b = card.body
 
         # 折叠开关

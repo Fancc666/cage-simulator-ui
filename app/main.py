@@ -9,7 +9,7 @@ from app import APP_SUBTITLE, APP_TITLE, __version__
 from app.core.config import Project
 from app.pages import InputPage, ResultPage, RunPage
 from app.paths import LOGS_DIR, ensure_dir
-from app.theme import Color, Fonts, Size, apply_theme
+from app.theme import Color, FontSize, Fonts, Size, apply_theme
 from app.widgets import Stepper
 
 
@@ -44,20 +44,20 @@ class MainWindow(tk.Tk):
         sidebar.pack_propagate(False)
 
         brand = tk.Frame(sidebar, bg=Color.SIDEBAR)
-        brand.pack(fill="x", pady=(22, 24), padx=18)
+        brand.pack(fill="x", pady=(26, 28), padx=20)
         tk.Label(brand, text="网箱时域", bg=Color.SIDEBAR,
                  fg=Color.SIDEBAR_TEXT_ACTIVE,
-                 font=Fonts.get(15, "bold"), anchor="w").pack(fill="x")
+                 font=Fonts.get(17, "bold"), anchor="w").pack(fill="x")
         tk.Label(brand, text=APP_SUBTITLE, bg=Color.SIDEBAR,
-                 fg=Color.SIDEBAR_TEXT, font=Fonts.get(8),
-                 anchor="w").pack(fill="x")
+                 fg=Color.SIDEBAR_TEXT, font=Fonts.get(FontSize.SMALL),
+                 anchor="w").pack(fill="x", pady=(2, 0))
 
         self.nav_buttons: list[tk.Label] = []
         for i, name in enumerate(PAGE_NAMES):
             lbl = tk.Label(sidebar, text=f"  {i + 1}   {name}",
                            bg=Color.SIDEBAR, fg=Color.SIDEBAR_TEXT,
-                           font=Fonts.get(11), anchor="w",
-                           padx=18, pady=12, cursor="hand2")
+                           font=Fonts.get(FontSize.NAV), anchor="w",
+                           padx=20, pady=13)
             lbl.pack(fill="x")
             lbl.bind("<Button-1>", lambda _e, idx=i: self.show_page(idx))
             lbl.bind("<Enter>", lambda _e, w=lbl: self._nav_hover(w, True))
@@ -66,27 +66,27 @@ class MainWindow(tk.Tk):
 
         # 底部版本号
         tk.Label(sidebar, text=f"v{__version__}", bg=Color.SIDEBAR,
-                 fg=Color.SIDEBAR_TEXT, font=Fonts.get(8),
-                 anchor="w", padx=18, pady=14).pack(side="bottom", fill="x")
+                 fg=Color.SIDEBAR_TEXT, font=Fonts.get(FontSize.SMALL),
+                 anchor="w", padx=20, pady=16).pack(side="bottom", fill="x")
 
         # ---- 右侧主区域 ----
         main = ttk.Frame(self)
         main.pack(side="left", fill="both", expand=True)
 
         # 顶部步骤条
-        top = ttk.Frame(main, padding=(18, 12, 18, 0))
+        top = ttk.Frame(main, padding=(20, 14, 20, 0))
         top.pack(fill="x")
         self.stepper = Stepper(top, PAGE_NAMES, on_click=self.show_page)
         self.stepper.pack(side="left")
 
-        ttk.Separator(main, orient="horizontal").pack(fill="x", pady=(10, 0))
+        ttk.Separator(main, orient="horizontal").pack(fill="x", pady=(12, 0))
 
         # 页面容器
         self.page_container = ttk.Frame(main)
         self.page_container.pack(fill="both", expand=True)
 
         # 底部状态栏
-        status = ttk.Frame(main, padding=(18, 4, 18, 6))
+        status = ttk.Frame(main, padding=(20, 5, 20, 7))
         status.pack(fill="x", side="bottom")
         ttk.Separator(main, orient="horizontal").pack(fill="x", side="bottom")
         self.status_var = tk.StringVar(value="就绪")

@@ -10,7 +10,7 @@ from pathlib import Path
 from tkinter import ttk
 
 from app.paths import OUTPUT_DIR, open_in_explorer
-from app.theme import Color, Fonts
+from app.theme import Color, FontSize, Fonts
 from app.widgets import Card
 
 
@@ -20,7 +20,7 @@ class ResultPage(ttk.Frame):
         self.app = app
 
         # ---- 标题 ----
-        head = ttk.Frame(self, padding=(18, 14, 18, 6))
+        head = ttk.Frame(self, padding=(20, 16, 20, 8))
         head.pack(fill="x")
         ttk.Label(head, text="结果", style="H1.TLabel").pack(side="left")
         ttk.Button(head, text="刷新", style="Ghost.TButton",
@@ -30,7 +30,7 @@ class ResultPage(ttk.Frame):
             side="right", padx=(0, 8))
 
         # ---- 主体：左列表 + 右内容 ----
-        body = ttk.Frame(self, padding=(18, 0, 18, 14))
+        body = ttk.Frame(self, padding=(20, 0, 20, 16))
         body.pack(fill="both", expand=True)
 
         paned = ttk.PanedWindow(body, orient="horizontal")
@@ -43,7 +43,7 @@ class ResultPage(ttk.Frame):
             anchor="w", pady=(0, 6))
         self.case_list = tk.Listbox(
             left, activestyle="none", exportselection=False,
-            font=Fonts.get(10), relief="solid", borderwidth=1,
+            font=Fonts.get(FontSize.BASE), relief="flat", borderwidth=0,
             highlightthickness=0, selectbackground=Color.PRIMARY,
             selectforeground=Color.TEXT_INVERSE)
         self.case_list.pack(fill="both", expand=True)
@@ -55,7 +55,7 @@ class ResultPage(ttk.Frame):
 
         # 统计摘要
         stat_card = Card(right, title="统计摘要")
-        stat_card.pack(fill="x", pady=(0, 12))
+        stat_card.pack(fill="x", pady=(0, 14))
         self.stat_label = ttk.Label(
             stat_card.body,
             text="选择一个工况查看统计结果。\n\n"
@@ -65,7 +65,7 @@ class ResultPage(ttk.Frame):
 
         # 图片缩略图
         fig_card = Card(right, title="结果图片")
-        fig_card.pack(fill="both", expand=True, pady=(0, 12))
+        fig_card.pack(fill="both", expand=True, pady=(0, 14))
         self.fig_grid = ttk.Frame(fig_card.body, style="Card.TFrame")
         self.fig_grid.pack(fill="both", expand=True)
         self._fig_placeholder = ttk.Label(

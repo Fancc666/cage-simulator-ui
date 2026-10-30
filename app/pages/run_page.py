@@ -12,7 +12,7 @@ from tkinter import messagebox, ttk
 
 from app.core.simulator import STAGES, SimulatorRunner
 from app.paths import OUTPUT_DIR, ensure_dir
-from app.theme import Color, Fonts
+from app.theme import Color, FontSize, Fonts
 from app.widgets import Card, LogView
 
 
@@ -25,23 +25,23 @@ class RunPage(ttk.Frame):
         self._start_time: float = 0.0
 
         # ---- 标题 ----
-        head = ttk.Frame(self, padding=(18, 14, 18, 6))
+        head = ttk.Frame(self, padding=(20, 16, 20, 8))
         head.pack(fill="x")
         ttk.Label(head, text="运行", style="H1.TLabel").pack(side="left")
         self.case_label = ttk.Label(head, text="", style="Muted.TLabel")
         self.case_label.pack(side="left", padx=(12, 0))
 
-        body = ttk.Frame(self, padding=(18, 0, 18, 0))
+        body = ttk.Frame(self, padding=(20, 0, 20, 0))
         body.pack(fill="both", expand=True)
 
         # ---- 阶段清单 ----
         card = Card(body, title="计算阶段")
-        card.pack(fill="x", pady=(0, 12))
+        card.pack(fill="x", pady=(0, 14))
         for i, name in enumerate(STAGES):
             row = ttk.Frame(card.body, style="Card.TFrame")
             row.pack(fill="x", pady=2)
             icon = ttk.Label(row, text="○", style="Card.TLabel", width=3,
-                             font=Fonts.get(11))
+                             font=Fonts.get(FontSize.BASE))
             icon.pack(side="left")
             label = ttk.Label(row, text=name, style="Card.TLabel")
             label.pack(side="left")
@@ -51,7 +51,7 @@ class RunPage(ttk.Frame):
 
         # ---- 进度 ----
         prog_card = Card(body, title="进度")
-        prog_card.pack(fill="x", pady=(0, 12))
+        prog_card.pack(fill="x", pady=(0, 14))
         self.progress = ttk.Progressbar(prog_card.body, mode="determinate",
                                         maximum=100)
         self.progress.pack(fill="x")
@@ -65,12 +65,12 @@ class RunPage(ttk.Frame):
 
         # ---- 日志 ----
         log_card = Card(body, title="日志")
-        log_card.pack(fill="both", expand=True, pady=(0, 12))
+        log_card.pack(fill="both", expand=True, pady=(0, 14))
         self.log_view = LogView(log_card.body, height=10)
         self.log_view.pack(fill="both", expand=True)
 
         # ---- 底部按钮 ----
-        foot = ttk.Frame(self, padding=(18, 8, 18, 14))
+        foot = ttk.Frame(self, padding=(20, 10, 20, 16))
         foot.pack(fill="x")
         self.btn_start = ttk.Button(foot, text="▶  开始运行",
                                     style="Primary.TButton",
