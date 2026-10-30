@@ -113,7 +113,16 @@ class ScrollFrame(ttk.Frame):
                                               anchor="nw")
         self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
+        # 只在鼠标进入本容器时临时绑定滚轮，离开即解绑，
+        # 避免 bind_all 在每次切换页面时累积回调（切页卡顿的隐患之一）。
+        self.canvas.bind("<Enter>", self._bind_wheel)
+        self.canvas.bind("<Leave>", self._unbind_wheel)
+
+    def _bind_wheel(self, _event=None):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def _unbind_wheel(self, _event=None):
+        self.canvas.unbind_all("<MouseWheel>")
 
     def _on_inner_configure(self, _event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -122,16 +131,9 @@ class ScrollFrame(ttk.Frame):
         self.canvas.itemconfigure(self._win, width=event.width)
 
     def _on_mousewheel(self, event):
-        # 只在鼠标位于本容器上时滚动
-        widget = self.winfo_containing(event.x_root, event.y_root)
-        parent = widget
-        while parent is not None:
-            if parent is self:
-                delta = -1 * (event.delta // 120) if event.delta else 0
-                if delta:
-                    self.canvas.yview_scroll(int(delta), "units")
-                return
-            parent = getattr(parent, "master", None)
+        delta = -1 * (event.delta // 120) if event.delta else 0
+        if delta:
+            self.canvas.yview_scroll(int(delta), "units")
 
 
 class LogView(ttk.Frame):

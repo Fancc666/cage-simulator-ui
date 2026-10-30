@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from app import APP_SUBTITLE, APP_TITLE, __version__
 from app.core.config import Project
 from app.pages import InputPage, ResultPage, RunPage
-from app.paths import LOGS_DIR, ensure_dir
+from app.paths import LOGS_DIR, app_dir, ensure_dir
 from app.theme import Color, FontSize, Fonts, Size, apply_theme
 from app.widgets import Stepper
 
 
 PAGE_NAMES = ["输入", "运行", "结果"]
+SETTINGS_FILE = app_dir() / "settings.json"
 
 
 class MainWindow(tk.Tk):
@@ -23,10 +25,16 @@ class MainWindow(tk.Tk):
         self.geometry(f"{Size.WINDOW_DEFAULT_W}x{Size.WINDOW_DEFAULT_H}")
         self.minsize(Size.WINDOW_MIN_W, Size.WINDOW_MIN_H)
 
+        # 先隐藏窗口，等所有页面构建完再一次性显示，
+        # 避免用户看到「先白屏、过一会儿才出 UI」的闪烁。
+        self.withdraw()
+
         apply_theme(self)
 
         self.project = Project()
+        self.settings: dict = self._load_settings()
         self._current_page = -1
+        self._log_buffer: list[str] = []
 
         self._build_layout()
         self._build_pages()
@@ -34,9 +42,41 @@ class MainWindow(tk.Tk):
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        # 居中显示后取消隐藏
+        self.update_idletasks()
+        self._center_window()
+        self.deiconify()
+
+    # ===================================================================== #
+    #  设置持久化
+    # ===================================================================== #
+    def _load_settings(self) -> dict:
+        try:
+            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def save_settings(self) -> None:
+        try:
+            SETTINGS_FILE.write_text(
+                json.dumps(self.settings, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+        except OSError:
+            pass
+
     # ===================================================================== #
     #  布局
     # ===================================================================== #
+    def _center_window(self) -> None:
+        """把窗口居中到屏幕。"""
+        w = self.winfo_width()
+        h = self.winfo_height()
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        x = max(0, (sw - w) // 2)
+        y = max(0, (sh - h) // 2 - 20)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
     def _build_layout(self) -> None:
         # ---- 侧边导航 ----
         sidebar = tk.Frame(self, bg=Color.SIDEBAR, width=Size.SIDEBAR_W)
@@ -135,12 +175,22 @@ class MainWindow(tk.Tk):
     # ===================================================================== #
     def log(self, msg: str, level: str = "info") -> None:
         self.status_var.set(msg)
+        # 缓冲写入：攒够 20 条或 1 秒再落盘，避免每条日志都开关文件
+        self._log_buffer.append(f"[{level}] {msg}")
+        if len(self._log_buffer) >= 20:
+            self._flush_log()
+
+    def _flush_log(self) -> None:
+        if not self._log_buffer:
+            return
         try:
             ensure_dir(LOGS_DIR)
             with open(LOGS_DIR / "ui.log", "a", encoding="utf-8") as f:
-                f.write(f"[{level}] {msg}\n")
+                f.write("\n".join(self._log_buffer) + "\n")
         except OSError:
             pass
+        finally:
+            self._log_buffer.clear()
 
     def _on_close(self) -> None:
         runner = getattr(self.run_page, "runner", None)
@@ -148,4 +198,6 @@ class MainWindow(tk.Tk):
             if not messagebox.askyesno("确认退出", "仿真仍在运行，确定退出吗？"):
                 return
             runner.stop()
+        self._flush_log()
+        self.save_settings()
         self.destroy()

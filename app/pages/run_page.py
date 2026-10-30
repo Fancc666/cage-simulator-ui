@@ -111,6 +111,12 @@ class RunPage(ttk.Frame):
             messagebox.showerror("参数错误", str(exc))
             return
 
+        program_dir = self.app.input_page.var_program_dir.get().strip()
+        if not program_dir:
+            messagebox.showerror("缺少程序目录",
+                                 "请在「输入」页设置 CagePython 程序目录。")
+            return
+
         out_dir = ensure_dir(OUTPUT_DIR / proj.wave.case_name())
         self.log_view.clear()
         self._reset_stages()
@@ -118,7 +124,8 @@ class RunPage(ttk.Frame):
         self._paused = False
         self._start_time = time.time()
 
-        self.runner = SimulatorRunner(proj, out_dir)
+        self.runner = SimulatorRunner(proj, out_dir,
+                                      program_dir=Path(program_dir))
         self.runner.start()
 
         self.btn_start.configure(state="disabled")
@@ -187,8 +194,14 @@ class RunPage(ttk.Frame):
         elif ev.kind == "progress":
             self.progress["value"] = ev.payload["frac"] * 100
             self.progress_text.configure(text=ev.payload.get("text", ""))
+        elif ev.kind == "result":
+            self._last_result = ev.payload.get("result")
         elif ev.kind == "error":
             self.log_view.append(f"错误：{ev.payload['msg']}", "error")
+            self.app.log(f"错误：{ev.payload['msg']}", "error")
+            detail = ev.payload.get("detail", "")
+            if detail:
+                self.log_view.append(detail, "error")
 
     def _on_finished(self) -> None:
         elapsed = time.time() - self._start_time
@@ -197,6 +210,10 @@ class RunPage(ttk.Frame):
         self.btn_stop.configure(state="disabled")
         self.elapsed_text.configure(text=f"总用时 {_fmt_duration(elapsed)}")
         self.app.log("运行结束", "ok")
+        # 把结果交给结果页
+        if getattr(self, "_last_result", None) is not None:
+            self.app.result_page.set_result(self._last_result)
+            self._last_result = None
         self.app.show_page(2)   # 自动跳到结果页
 
     def _reset_stages(self) -> None:

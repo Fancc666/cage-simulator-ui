@@ -8,9 +8,11 @@ from app.core.config import (
     WaveConfig,
     default_fairleads,
 )
+from app.core.engine import CageEngine, EngineError, RunResult
 from app.core.simulator import STAGES, Event, SimulatorRunner
 
 __all__ = [
     "Fairlead", "HydroConfig", "MooringConfig", "Project", "WaveConfig",
     "default_fairleads", "STAGES", "Event", "SimulatorRunner",
+    "CageEngine", "EngineError", "RunResult",
 ]

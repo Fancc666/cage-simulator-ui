@@ -11,3 +11,6 @@ logs/
 temp/
 *.log
 .DS_Store
+
+# 运行时生成的用户设置（程序目录等），不入库
+settings.json

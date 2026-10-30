@@ -44,9 +44,11 @@ PROJECTS_DIR = app_dir() / "projects"
 OUTPUT_DIR = app_dir() / "output"
 LOGS_DIR = app_dir() / "logs"
 
+# 原始计算程序目录（CagePython）
+DEFAULT_PROGRAM_DIR = PROJECT_ROOT / "CagePython"
 # 内置资源目录（波面文件、WAMIT 文件默认位置）
-DEFAULT_WAMIT_DIR = PROJECT_ROOT / "CagePython"
-DEFAULT_WAVE_DIR = PROJECT_ROOT / "CagePython"
+DEFAULT_WAMIT_DIR = DEFAULT_PROGRAM_DIR
+DEFAULT_WAVE_DIR = DEFAULT_PROGRAM_DIR
 
 
 def open_in_explorer(path: Path) -> None:

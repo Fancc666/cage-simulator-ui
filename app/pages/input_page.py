@@ -13,7 +13,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from app.core.config import Project
-from app.paths import DEFAULT_WAMIT_DIR, DEFAULT_WAVE_DIR
+from app.paths import DEFAULT_PROGRAM_DIR, DEFAULT_WAMIT_DIR, DEFAULT_WAVE_DIR
 from app.theme import Color, FontSize, Fonts
 from app.widgets import Card, Field, FileRow, ScrollFrame
 
@@ -61,9 +61,23 @@ class InputPage(ttk.Frame):
         card.pack(fill="x", pady=(0, 14))
         b = card.body
 
+        # ---- 程序目录（原始计算代码所在位置）----
+        prog_row = ttk.Frame(b, style="Card.TFrame")
+        prog_row.pack(fill="x", pady=(0, 8))
+        ttk.Label(prog_row, text="程序目录", style="Card.TLabel", width=12,
+                  anchor="w").pack(side="left")
+        self.var_program_dir = tk.StringVar(
+            value=self.app.settings.get("program_dir", str(DEFAULT_PROGRAM_DIR)))
+        ttk.Entry(prog_row, textvariable=self.var_program_dir).pack(
+            side="left", fill="x", expand=True)
+        ttk.Button(prog_row, text="浏览…",
+                   command=self._pick_program_dir).pack(side="left", padx=(8, 0))
+        ttk.Label(b, text="指向 CagePython 文件夹（原始计算代码）",
+                  style="CardMuted.TLabel").pack(anchor="w", pady=(0, 10))
+
         row = ttk.Frame(b, style="Card.TFrame")
         row.pack(fill="x", pady=(0, 8))
-        ttk.Label(row, text="文件目录", style="Card.TLabel", width=12,
+        ttk.Label(row, text="WAMIT 目录", style="Card.TLabel", width=12,
                   anchor="w").pack(side="left")
         self.var_hydro_dir = tk.StringVar(
             value=self.project.hydro.folder or str(DEFAULT_WAMIT_DIR))
@@ -115,6 +129,14 @@ class InputPage(ttk.Frame):
             self.dof_vars.append(v)
 
         self._check_hydro()
+
+    def _pick_program_dir(self) -> None:
+        path = filedialog.askdirectory(
+            title="选择 CagePython 程序目录",
+            initialdir=self.var_program_dir.get() or str(DEFAULT_PROGRAM_DIR))
+        if path:
+            self.var_program_dir.set(path)
+            self.app.settings["program_dir"] = path
 
     def _pick_hydro_dir(self) -> None:
         path = filedialog.askdirectory(
@@ -297,7 +319,8 @@ class InputPage(ttk.Frame):
         props = ttk.Frame(self.moor_body, style="Card.TFrame")
         props.pack(fill="x", pady=(8, 0))
         self.var_w = tk.StringVar(value=str(m.wet_weight))
-        self.var_ea = tk.StringVar(value=f"{m.ea:.4g}")
+        # 用 repr 保留完整精度：:.4g 会把 11468000 截成 1.147e+07
+        self.var_ea = tk.StringVar(value=f"{m.ea:.10g}")
         self.var_depth = tk.StringVar(value=str(m.depth))
         self.var_length = tk.StringVar(value=str(m.length))
         self.var_pt_min = tk.StringVar(value=str(m.pretension_min))
@@ -412,7 +435,7 @@ class InputPage(ttk.Frame):
         self.app.show_page(0)   # 重建页面以刷新控件
 
 
-def _human_size(n: int) -> str:
+def _human_size(n: float) -> str:
     for unit in ("B", "KB", "MB", "GB"):
         if n < 1024:
             return f"{n:.0f} {unit}"
